@@ -1,5 +1,12 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# 1. memory db
+lumos_db/
+chroma.sqlite3
+
+# 2. Python virtual environment
+venv_lumos/
+
 # dependencies
 /node_modules
 /.pnp
