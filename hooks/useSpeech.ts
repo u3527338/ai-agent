@@ -6,13 +6,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export function useSpeech(
     wakeWord: string,
     shutDownWord: string,
-    onWake: () => void,
+    onWake: (isAwake: boolean) => void,
     onShutDown: () => void
 ) {
     const [transcript, setTranscript] = useState("");
     const [isListening, setIsListening] = useState(false);
     const [isActive, setIsActive] = useState(false);
 
+    const isActiveRef = useRef(false);
     const recognitionRef = useRef<any>(null);
     const callbacksRef = useRef({ onWake, onShutDown });
 
@@ -26,6 +27,7 @@ export function useSpeech(
         const SpeechRecognition =
             (window as any).SpeechRecognition ||
             (window as any).webkitSpeechRecognition;
+
         if (!SpeechRecognition || recognitionRef.current) return;
 
         const rec = new SpeechRecognition();
@@ -39,26 +41,34 @@ export function useSpeech(
 
             if (current.isFinal) {
                 const isWake = text === wakeWord.toLowerCase();
-                const isShutdown = text === shutDownWord.toLowerCase()
+                const isShutdown = text === shutDownWord.toLowerCase();
 
                 if (isWake) {
+                    const wasAlreadyAwake = isActiveRef.current;
+                    callbacksRef.current.onWake(wasAlreadyAwake);
+
+                    isActiveRef.current = true;
                     setIsActive(true);
-                    callbacksRef.current.onWake();
+
                     resetTranscript();
                     return;
                 }
 
                 if (isShutdown) {
-                    setIsActive(false);
-                    callbacksRef.current.onShutDown();
+                    // 只有喺 Active 狀態下先可以 Shutdown
+                    if (isActiveRef.current) {
+                        isActiveRef.current = false;
+                        setIsActive(false);
+                        callbacksRef.current.onShutDown();
+                    }
                     resetTranscript();
                     return;
                 }
 
-                setIsActive((active) => {
-                    if (active && text.length > 1) setTranscript(text);
-                    return active;
-                });
+                // 處理對話內容
+                if (isActiveRef.current && text.length > 1) {
+                    setTranscript(text);
+                }
             }
         };
 
@@ -68,7 +78,8 @@ export function useSpeech(
             if (recognitionRef.current) {
                 setTimeout(() => {
                     try {
-                        recognitionRef.current.start();
+                        // 檢查如果重啟時 recognitionRef 仲喺度先啟動
+                        recognitionRef.current?.start();
                     } catch (e) {}
                 }, 100);
             }

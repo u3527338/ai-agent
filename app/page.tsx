@@ -5,6 +5,7 @@ import { BottomHUD, SideTelemetry, TopHUD } from "@/components/HUD";
 import {
     AGENT_NAME,
     SHUTDOWN_RESPONSE,
+    STANDBY_RESPONSE,
     WAKE_RESPONSE,
 } from "@/helpers/constant";
 import { getShutdownWord, getWakeWord } from "@/helpers/function";
@@ -18,11 +19,14 @@ export default function Home() {
     const [hasInteracted, setHasInteracted] = useState(false);
     const { isThinking, isSpeaking, askLumos, setResponse, speak } = useChat();
 
-    const handleWake = useCallback(() => {
-        const msg = WAKE_RESPONSE;
-        setResponse(msg);
-        speak(msg);
-    }, [speak, setResponse]);
+    const handleWake = useCallback(
+        (isAwake: boolean) => {
+            const msg = isAwake ? STANDBY_RESPONSE : WAKE_RESPONSE;
+            setResponse(msg);
+            speak(msg);
+        },
+        [speak, setResponse]
+    );
 
     const handleShutDown = useCallback(() => {
         const msg = SHUTDOWN_RESPONSE;

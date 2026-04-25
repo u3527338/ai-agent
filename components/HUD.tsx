@@ -58,17 +58,17 @@ function BatteryStatus({
 
 export function SideTelemetry() {
     return (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 space-y-2 opacity-20 z-50 hidden md:block border-l border-cyan-500/20 pl-2">
+        <div className="fixed left-4 top-1/2 -translate-y-1/2 space-y-2 z-50 md:block border-l border-cyan-500/20 pl-2">
             {[...Array(12)].map((_, i) => (
                 <motion.div
                     key={i}
-                    animate={{ width: [8, 30, 15], opacity: [0.2, 0.5, 0.2] }}
+                    animate={{ width: [10, 50, 20], opacity: [0.2, 0.5, 0.2] }}
                     transition={{
                         duration: 2,
                         repeat: Infinity,
                         delay: i * 0.1,
                     }}
-                    className="h-[1px] bg-cyan-500"
+                    className="h-[4px] bg-cyan-500"
                 />
             ))}
         </div>
@@ -118,7 +118,7 @@ export function TopHUD({ data, agentName }: { data: any; agentName: string }) {
                 </div>
                 <div className="flex items-center gap-2 opacity-80">
                     <Globe className="w-3 h-3" strokeWidth={1.5} />
-                    <p>LOC: {data.city || <Skeleton width="w-16" />}</p>
+                    <p>LOCATION: {data.city || <Skeleton width="w-16" />}</p>
                 </div>
             </div>
 

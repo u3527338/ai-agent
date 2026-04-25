@@ -17,6 +17,7 @@ export const WAKE_WORD = "Lumos";
 export const SHUTDOWN_WORD = "Terminate";
 export const WAKE_RESPONSE =
     "Systems online. Fact-extraction protocols stand at the ready, Sir.";
+export const STANDBY_RESPONSE = "System already online. I am here, Sir.";
 export const SHUTDOWN_RESPONSE =
     "System offline. I shall remain in the shadows until summoned, Sir.";
 
