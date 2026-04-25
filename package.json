@@ -7,7 +7,9 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint",
-        "system-launch": "docker-compose up --build"
+        "system-launch": "docker-compose up --build",
+        "memory": "./venv_memory/bin/chroma run --path ./lumos_db",
+        "memory:check": "./venv_memory/bin/pip show chromadb"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
