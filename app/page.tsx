@@ -2,7 +2,8 @@
 
 import ArcReactor from "@/components/ArcReactor";
 import { BottomHUD, SideTelemetry, TopHUD } from "@/components/HUD";
-import { AGENT_NAME, getShutdownWord, getWakeWord } from "@/helpers/function";
+import { AGENT_NAME } from "@/helpers/constant";
+import { getShutdownWord, getWakeWord } from "@/helpers/function";
 import { useChat } from "@/hooks/useChat";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useTelemetry } from "@/hooks/useTelemetry";
@@ -44,8 +45,18 @@ export default function Home() {
         // ⚛️ EXECUTION: Process valid human speech only
         if (isActive && transcript.trim().length > 0) {
             const query = transcript;
-            resetTranscript(); // Clear immediately to prevent double-processing
-            askLumos(query);
+            if (query.startsWith(getWakeWord)) {
+                const parts = query.split(getWakeWord);
+                const actualCommand = parts[parts.length - 1].trim();
+
+                if (actualCommand.length > 0) {
+                    console.log("⚛️ Executing command:", actualCommand);
+                    resetTranscript();
+                    askLumos(actualCommand);
+                } else {
+                    resetTranscript();
+                }
+            }
         }
     }, [
         transcript,

@@ -1,4 +1,5 @@
 "use client";
+import { lumosLang } from "@/helpers/constant";
 import { useCallback, useRef, useState } from "react";
 
 export function useChat() {
@@ -12,7 +13,7 @@ export function useChat() {
         if (!text || typeof window === "undefined") return;
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-GB";
+        utterance.lang = lumosLang;
         utterance.rate = 1.1;
 
         utterance.onstart = () => {

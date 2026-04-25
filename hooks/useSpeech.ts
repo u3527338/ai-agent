@@ -1,5 +1,6 @@
 "use client";
 
+import { masterLang } from "@/helpers/constant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useSpeech(
@@ -22,21 +23,24 @@ export function useSpeech(
     const resetTranscript = useCallback(() => setTranscript(""), []);
 
     const initRecognition = useCallback(() => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const SpeechRecognition =
+            (window as any).SpeechRecognition ||
+            (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition || recognitionRef.current) return;
 
         const rec = new SpeechRecognition();
-        rec.continuous = false; 
+        rec.continuous = false;
         rec.interimResults = true;
-        rec.lang = "en-GB";
+        rec.lang = masterLang;
 
         rec.onresult = (event: any) => {
             const current = event.results[event.results.length - 1];
             const text = current[0].transcript.toLowerCase().trim();
 
             if (current.isFinal) {
-                const isWake = text.includes(wakeWord.toLowerCase());
-                const isShutdown = /system\s?shutdown|system\s?shut\s?down/.test(text);
+                const isWake = text === wakeWord.toLowerCase();
+                const isShutdown =
+                    /system\s?shutdown|system\s?shut\s?down/.test(text);
 
                 if (isWake) {
                     setIsActive(true);
@@ -64,7 +68,9 @@ export function useSpeech(
             setIsListening(false);
             if (recognitionRef.current) {
                 setTimeout(() => {
-                    try { recognitionRef.current.start(); } catch (e) {}
+                    try {
+                        recognitionRef.current.start();
+                    } catch (e) {}
                 }, 100);
             }
         };

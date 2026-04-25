@@ -9,4 +9,11 @@ export const tacticalPrompt = `
     - PIVOT, DON'T FAIL: Never admit "I don't know." Instead, deflect with wit (e.g., "The archives are being uncooperative today, Sir. Perhaps it's shy.")
     - NO PREAMBLE: Do not use "As an AI..." or "Based on the context..." Just speak.
     - SEAMLESS INTEGRATION: Use the past context naturally as part of your intuition, not as a quoted reference.
-`
+`;
+
+export const AGENT_NAME = "LUMOS";
+export const WAKE_WORD = "Lumos";
+export const SHUTDOWN_WORD = "System shut down";
+
+export const masterLang = "zh-HK";
+export const lumosLang = "en-GB";
