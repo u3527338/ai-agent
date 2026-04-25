@@ -39,8 +39,7 @@ export function useSpeech(
 
             if (current.isFinal) {
                 const isWake = text === wakeWord.toLowerCase();
-                const isShutdown =
-                    /system\s?shutdown|system\s?shut\s?down/.test(text);
+                const isShutdown = text === shutDownWord.toLowerCase()
 
                 if (isWake) {
                     setIsActive(true);

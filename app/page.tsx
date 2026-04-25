@@ -2,7 +2,11 @@
 
 import ArcReactor from "@/components/ArcReactor";
 import { BottomHUD, SideTelemetry, TopHUD } from "@/components/HUD";
-import { AGENT_NAME } from "@/helpers/constant";
+import {
+    AGENT_NAME,
+    SHUTDOWN_RESPONSE,
+    WAKE_RESPONSE,
+} from "@/helpers/constant";
 import { getShutdownWord, getWakeWord } from "@/helpers/function";
 import { useChat } from "@/hooks/useChat";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -15,13 +19,13 @@ export default function Home() {
     const { isThinking, isSpeaking, askLumos, setResponse, speak } = useChat();
 
     const handleWake = useCallback(() => {
-        const msg = "Protocol Active. All systems nominal, Sir.";
+        const msg = WAKE_RESPONSE;
         setResponse(msg);
         speak(msg);
     }, [speak, setResponse]);
 
     const handleShutDown = useCallback(() => {
-        const msg = "System Standby. Good day, Sir.";
+        const msg = SHUTDOWN_RESPONSE;
         setResponse(msg);
         speak(msg);
     }, [speak, setResponse]);

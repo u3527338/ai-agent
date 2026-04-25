@@ -1,9 +1,9 @@
 "use client";
-import { lumosLang } from "@/helpers/constant";
+import { lumosLang, WAKE_RESPONSE } from "@/helpers/constant";
 import { useCallback, useRef, useState } from "react";
 
 export function useChat() {
-    const [response, setResponse] = useState("Protocol Standby, Sir.");
+    const [response, setResponse] = useState(WAKE_RESPONSE);
     const [isThinking, setIsThinking] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const isBusyRef = useRef(false);
@@ -96,7 +96,7 @@ export function useChat() {
                 }
             }
         } catch (error) {
-            setResponse("Neural link anomaly.");
+            setResponse("Neural link abnormally.");
             isBusyRef.current = false;
         } finally {
             setIsThinking(false);

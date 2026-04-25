@@ -6,7 +6,7 @@ import { ChromaClient } from "chromadb";
  */
 async function prune() {
     const client = new ChromaClient({
-        path: "http://localhost:8000"
+        path: `http://localhost:${process.env.MEMORY_PORT}`
     });
 
     try {

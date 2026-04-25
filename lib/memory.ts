@@ -7,7 +7,7 @@ class OllamaEmbedder implements EmbeddingFunction {
             const responses = await Promise.all(
                 texts.map(async (text) => {
                     const res = await fetch(
-                        "http://localhost:11434/api/embeddings",
+                        `${process.env.OLLAMA_URL}/embeddings`,
                         {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -84,7 +84,7 @@ export async function extractAtomicFacts(
     userMessage: string
 ): Promise<string[]> {
     try {
-        const response = await fetch("http://localhost:11434/api/generate", {
+        const response = await fetch(`${process.env.OLLAMA_URL}/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
