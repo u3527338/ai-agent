@@ -59,11 +59,7 @@ export default function Home() {
         const hasValidResponse = !!(
             response && ![WAKE_RESPONSE, STANDBY_RESPONSE].includes(response)
         );
-        return (
-            !!(isThinking || isSpeaking || hasValidResponse) &&
-            isActive &&
-            !isPreWaking
-        );
+        return (isSpeaking || (hasValidResponse && !isPreWaking)) && isActive;
     }, [isThinking, isSpeaking, response, isActive, isPreWaking]);
 
     const systemStatus = useMemo(() => {
