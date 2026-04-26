@@ -153,7 +153,9 @@ export default function ArcReactor({
                         className="text-[clamp(4px,1vw,6px)] mt-1 tracking-[0.3em] font-mono uppercase opacity-60 transition-colors duration-500"
                         style={{ color: activeColor }}
                     >
-                        {isSpeaking
+                        {!isOnline
+                            ? "Offline"
+                            : isSpeaking
                             ? "Transmitting"
                             : isThinking
                             ? "Synthesizing"

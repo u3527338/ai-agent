@@ -162,7 +162,7 @@ export function useSpeech(
             const currentText = interim.toLowerCase().trim();
 
             // 視覺即時反饋
-            if (isPrewake(currentText) && !isPreWaking) {
+            if (isFinalResult && isPrewake(currentText) && !isPreWaking) {
                 if (isActiveRef.current) {
                     console.log(3);
                     setIsPreWaking(true);
