@@ -9,6 +9,8 @@
         "lint": "eslint",
         "system-launch": "docker-compose up --build",
         "memory": "./venv_memory/bin/chroma run --path ./lumos_db",
+        "ollama": "ollama serve",
+        "lumos": "concurrently -n \"BRAIN,MEMORY,UI\" -c \"magenta.bold,cyan.bold,blue.bold\" \"npm run ollama\" \"npm run memory\" \"npm run dev\"",
         "memory:check": "./venv_memory/bin/pip show chromadb"
     },
     "dependencies": {
@@ -18,13 +20,16 @@
         "lucide-react": "^1.9.0",
         "next": "16.2.4",
         "react": "19.2.4",
-        "react-dom": "19.2.4"
+        "react-dom": "19.2.4",
+        "server-only": "^0.0.1",
+        "systeminformation": "^5.31.5"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4",
         "@types/node": "^20",
         "@types/react": "^19",
         "@types/react-dom": "^19",
+        "concurrently": "^9.2.1",
         "eslint": "^9",
         "eslint-config-next": "16.2.4",
         "tailwindcss": "^4",

@@ -74,10 +74,12 @@ export function useChat() {
                 sentenceBuffer += chunk;
                 setResponse(fullReply);
 
-                if (/[。！？.!?;]/.test(sentenceBuffer)) {
+                if (
+                    /[。！？.!?;]/.test(sentenceBuffer) ||
+                    sentenceBuffer.length > 20
+                ) {
                     const toSpeak = sentenceBuffer.trim();
                     if (toSpeak.length > 1) {
-                        // ⚛️ 檢查是否正在說話，如果是則排隊
                         if (!window.speechSynthesis.speaking) {
                             speak(toSpeak);
                         } else {

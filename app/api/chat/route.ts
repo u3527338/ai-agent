@@ -1,6 +1,5 @@
-import { tacticalPrompt } from "@/helpers/constant";
 import { getEnrichedPrompt } from "@/helpers/function";
-import { commitToBrain, getMemory } from "@/lib/memory"; // 確保 export 了 commitToBrain
+import { commitToBrain, getMemory } from "@/lib/memory";
 
 export async function POST(req: Request) {
     try {
@@ -10,10 +9,12 @@ export async function POST(req: Request) {
             (body.message ? [{ role: "user", content: body.message }] : []);
         const lastUserMessage = messages[messages.length - 1]?.content || "";
 
-        // 1. 🔍 檢索：喺腦入面搵返相關嘅事實
-        const longTermContext = await getMemory(lastUserMessage);
+        // 1. 🔍 高速檢索：將 nResults 降至 5，減少 LLM 讀取 Context 的負擔
+        const longTermContext = (await Promise.race([
+            getMemory(lastUserMessage, 5),
+            new Promise((resolve) => setTimeout(() => resolve(""), 2000)), // 2秒攞唔到就放棄
+        ])) as string;
 
-        // 短期記憶：維持對話連貫性
         const shortTermContext = messages
             .slice(-5, -1)
             .map(
@@ -22,12 +23,12 @@ export async function POST(req: Request) {
             )
             .join("\n");
 
-        // 2. 🧠 指令注入：三文治式 Prompt，確保廣東話同人格優先
         const enrichedPrompt = getEnrichedPrompt({
             longTermContext,
             shortTermContext,
         });
 
+        // 2. 🚀 發起對話請求
         const ollamaRes = await fetch(`${process.env.OLLAMA_URL}/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -35,10 +36,10 @@ export async function POST(req: Request) {
                 model: "llama3.2:3b",
                 messages: [
                     { role: "system", content: enrichedPrompt },
-                    ...messages.slice(-3), // 俾埋最近 3 句 raw message 增加流暢度
+                    ...messages.slice(-3),
                 ],
                 stream: true,
-                options: { temperature: 0.6 }, // 稍微降低隨機性
+                options: { temperature: 0.6 },
             }),
         });
 
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
             async start(controller) {
                 const reader = ollamaRes.body?.getReader();
                 let fullReply = "";
+                const decoder = new TextDecoder();
                 if (!reader) return;
 
                 try {
@@ -53,34 +55,41 @@ export async function POST(req: Request) {
                         const { done, value } = await reader.read();
                         if (done) break;
 
-                        const chunk = new TextDecoder().decode(value);
+                        const chunk = decoder.decode(value);
+                        // ⚛️ 優化解析：Ollama 的 Stream 每行都是一個完整的 JSON
                         const lines = chunk.split("\n");
 
                         for (const line of lines) {
                             if (!line.trim()) continue;
-                            const json = JSON.parse(line);
-                            if (json.message?.content) {
-                                const content = json.message.content;
-                                fullReply += content;
-                                controller.enqueue(
-                                    new TextEncoder().encode(content)
-                                );
+                            try {
+                                const json = JSON.parse(line);
+                                if (json.message?.content) {
+                                    const content = json.message.content;
+                                    fullReply += content;
+                                    // ⚡ 立即推送給前端，不要有任何延遲
+                                    controller.enqueue(
+                                        new TextEncoder().encode(content)
+                                    );
+                                }
+                            } catch (e) {
+                                // 忽略殘缺的 JSON 塊
                             }
                         }
                     }
-
-                    // 🚀 核心進化：唔好就咁儲 RAW，係要儲提煉後嘅事實
-                    // 唔好 await，覆完 Sir 先喺 background 慢慢諗
-                    commitToBrain(`User: ${lastUserMessage}`).catch(() => {});
-
-                    if (fullReply) {
-                        // 可選：如果你想連 AI 講過嘅事實都記埋
-                        commitToBrain(`LUMOS told Sir: ${fullReply}`).catch(
-                            () => {}
-                        );
-                    }
                 } finally {
                     controller.close();
+
+                    // 🧠 【核心優化】異步儲存：唔好等儲存完先 Response
+                    // 使用立即執行函數 (IIFE) 喺 Background 處理
+                    setImmediate(async () => {
+                        try {
+                            await commitToBrain(`User: ${lastUserMessage}`);
+                            if (fullReply)
+                                await commitToBrain(`LUMOS: ${fullReply}`);
+                        } catch (e) {
+                            console.error("Brain Storage Error:", e);
+                        }
+                    });
                 }
             },
         });
@@ -88,9 +97,6 @@ export async function POST(req: Request) {
         return new Response(stream);
     } catch (error) {
         console.error("Neural Error:", error);
-        return new Response(
-            "Neural links offline, Sir. System reboot required.",
-            { status: 500 }
-        );
+        return new Response("Neural links offline, Sir.", { status: 500 });
     }
 }

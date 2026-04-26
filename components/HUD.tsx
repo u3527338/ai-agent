@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
     Activity,
     Battery,
@@ -56,24 +55,93 @@ function BatteryStatus({
     );
 }
 
-export function SideTelemetry() {
+export const SideTelemetry = ({ data }: { data: any }) => {
+    // 強制轉換為數字，確保 load 係正向增加
+    const load = data?.memory?.percent || 0;
+
+    // ⚛️ 能量條顏色邏輯：
+    // 0-60%: 青色 (Stable)
+    // 60-85%: 黃色 (Stress)
+    // 85-100%: 紅色 (Critical)
+    const getColor = (p: number) => {
+        if (p > 85) return "#ff4444"; // Red
+        if (p > 60) return "#ffcc00"; // Yellow
+        return "#22d3ee"; // Cyan
+    };
+
+    const activeColor = getColor(load);
+
     return (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 space-y-2 z-50 md:block border-l border-cyan-500/20 pl-2">
-            {[...Array(12)].map((_, i) => (
-                <motion.div
-                    key={i}
-                    animate={{ width: [10, 50, 20], opacity: [0.2, 0.5, 0.2] }}
-                    transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        delay: i * 0.1,
+        <div className="fixed right-6 top-1/2 -translate-y-1/2 flex items-center gap-6 z-50 pointer-events-none font-mono">
+            <div className="flex flex-col gap-10 text-right">
+                <div className="space-y-1">
+                    <p className="text-[10px] opacity-30 uppercase tracking-[0.3em]">
+                        Neural Pressure
+                    </p>
+                    <div className="flex flex-col items-end">
+                        <span
+                            className="text-xs font-black transition-colors duration-500"
+                            style={{ color: activeColor }}
+                        >
+                            LOAD_LEVEL: {load}%
+                        </span>
+                        <span className="text-[9px] opacity-40 uppercase">
+                            {data?.memory?.used} / {data?.memory?.total}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="space-y-1">
+                    <p className="text-[10px] opacity-30 uppercase tracking-[0.3em]">
+                        GPU Cluster
+                    </p>
+                    <div className="text-right">
+                        <span className="text-[10px] text-cyan-400 font-bold tracking-widest">
+                            M-SERIES_ACTIVE
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ⚛️ 垂直壓力計：確保 bottom-0 向上升 */}
+            <div className="h-80 w-12 flex flex-col items-end justify-between py-2 relative border-r border-white/5">
+                {/* 軌道背景 */}
+                <div className="absolute right-0 bottom-0 w-[1px] bg-white/10 h-full" />
+
+                {/* 能量條：思考時 Load 升，呢度就升 */}
+                <div
+                    className="absolute right-0 bottom-0 w-[4px] transition-all duration-[800ms] ease-out origin-bottom"
+                    style={{
+                        height: `${load}%`,
+                        backgroundColor: activeColor,
+                        boxShadow: `0 0 20px ${activeColor}`,
                     }}
-                    className="h-[4px] bg-cyan-500"
                 />
-            ))}
+
+                {/* 刻度 */}
+                {[...Array(11)].map((_, i) => (
+                    <div
+                        key={i}
+                        className={`w-2 h-[1px] transition-colors duration-500 ${
+                            load > (10 - i) * 10 ? "bg-white/60" : "bg-white/10"
+                        }`}
+                    />
+                ))}
+
+                {/* 浮動指針：跟隨 Load 向上衝 */}
+                <div
+                    className="absolute -right-[4px] w-2.5 h-4 transition-all duration-[800ms] ease-out z-20"
+                    style={{
+                        bottom: `calc(${load}% - 8px)`,
+                        backgroundColor: activeColor,
+                        boxShadow: `0 0 25px ${activeColor}`,
+                        clipPath: "polygon(0% 20%, 100% 50%, 0% 80%)",
+                    }}
+                />
+            </div>
         </div>
     );
-}
+};
 
 export function TopHUD({ data, agentName }: { data: any; agentName: string }) {
     const isError = data.error || !data.isOnline;

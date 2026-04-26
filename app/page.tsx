@@ -2,6 +2,7 @@
 
 import ArcReactor from "@/components/ArcReactor";
 import { BottomHUD, SideTelemetry, TopHUD } from "@/components/HUD";
+import ResponseFrame from "@/components/ResponseFrame";
 import {
     AGENT_NAME,
     SHUTDOWN_RESPONSE,
@@ -12,20 +13,27 @@ import { getShutdownWord, getWakeWord } from "@/helpers/function";
 import { useChat } from "@/hooks/useChat";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useTelemetry } from "@/hooks/useTelemetry";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export default function Home() {
     const { sysData } = useTelemetry();
     const [hasInteracted, setHasInteracted] = useState(false);
-    const { isThinking, isSpeaking, askLumos, setResponse, speak } = useChat();
+    const { isThinking, isSpeaking, askLumos, response, setResponse, speak } =
+        useChat();
 
+    // ⚛️ 唯一指令入口
     const handleWake = useCallback(
-        (isAwake: boolean) => {
-            const msg = isAwake ? STANDBY_RESPONSE : WAKE_RESPONSE;
-            setResponse(msg);
-            speak(msg);
+        (isAlreadyAwake: boolean, command?: string) => {
+            if (command && command.length > 1) {
+                // 只有包含 Lumos 嘅指令先會嚟到呢度
+                askLumos(command);
+            } else {
+                const msg = isAlreadyAwake ? STANDBY_RESPONSE : WAKE_RESPONSE;
+                setResponse(msg);
+                speak(msg);
+            }
         },
-        [speak, setResponse]
+        [speak, setResponse, askLumos]
     );
 
     const handleShutDown = useCallback(() => {
@@ -34,103 +42,78 @@ export default function Home() {
         speak(msg);
     }, [speak, setResponse]);
 
-    const { transcript, isActive, resetTranscript } = useSpeech(
+    const { transcript, isActive, isPreWaking, resetTranscript } = useSpeech(
         getWakeWord,
         getShutdownWord,
         handleWake,
         handleShutDown
     );
 
-    useEffect(() => {
-        // ⚛️ FIREWALL: If LUMOS is thinking or speaking, plug his ears.
-        if (isThinking || isSpeaking) {
-            if (transcript !== "") {
-                resetTranscript();
-            }
-            return;
-        }
+    // ⚛️ 移除咗原本自動 askLumos(transcript) 嘅 useEffect
+    // 依家 transcript 只用嚟喺 ResponseFrame 顯示你講緊乜，唔會自動發送指令
 
-        // ⚛️ EXECUTION: Process valid human speech only
-        if (isActive && transcript.trim().length > 0) {
-            const query = transcript;
-            if (query.startsWith(getWakeWord)) {
-                const parts = query.split(getWakeWord);
-                const actualCommand = parts[parts.length - 1].trim();
-
-                if (actualCommand.length > 0) {
-                    console.log("⚛️ Executing command:", actualCommand);
-                    resetTranscript();
-                    askLumos(actualCommand);
-                } else {
-                    resetTranscript();
-                }
-            }
-        }
-    }, [
-        transcript,
-        isActive,
-        isThinking,
-        isSpeaking,
-        askLumos,
-        resetTranscript,
-    ]);
+    const showOverlay = useMemo((): boolean => {
+        const hasValidResponse = !!(
+            response && ![WAKE_RESPONSE, STANDBY_RESPONSE].includes(response)
+        );
+        return (
+            !!(isThinking || isSpeaking || hasValidResponse) &&
+            isActive &&
+            !isPreWaking
+        );
+    }, [isThinking, isSpeaking, response, isActive]);
 
     const systemStatus = useMemo(() => {
         if (isThinking) return "ANALYSING";
         if (isSpeaking) return "TRANSMITTING";
+        if (isPreWaking) return "SYNCING";
         if (isActive) return "LISTENING";
         return "STANDBY";
-    }, [isThinking, isSpeaking, isActive]);
+    }, [isThinking, isSpeaking, isActive, isPreWaking]);
 
     return (
         <main
-            className="min-h-screen bg-[#020508] text-cyan-500 font-mono overflow-hidden relative p-8"
+            className="min-h-screen bg-[#020508] text-cyan-500 font-mono overflow-hidden relative select-none"
             onClick={() => !hasInteracted && setHasInteracted(true)}
         >
             {!hasInteracted && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-2xl">
-                    <div className="text-center p-12 border border-cyan-500/20 rounded-full animate-pulse cursor-pointer">
-                        <p className="text-cyan-400 tracking-[1em] font-black text-[10px] uppercase">
+                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl">
+                    <div className="text-center p-16 border border-cyan-500/20 rounded-full animate-pulse cursor-pointer">
+                        <p className="text-cyan-400 tracking-[1.5em] font-black text-[10px] uppercase">
                             INITIALIZE NEURAL LINK
                         </p>
                     </div>
                 </div>
             )}
 
-            <TopHUD data={sysData} agentName={AGENT_NAME} />
-            <SideTelemetry />
-
-            <div className="relative z-10 flex flex-col items-center justify-center min-h-screen">
-                <ArcReactor isListening={isActive} isThinking={isThinking} />
-
-                <div className="mt-20 w-full max-w-2xl text-center">
-                    <div className="flex items-center justify-center gap-3 mb-6">
-                        <div
-                            className={`w-2 h-2 rounded-full ${
-                                isThinking
-                                    ? "bg-red-500 animate-ping"
-                                    : "bg-cyan-500 shadow-[0_0_8px_cyan]"
-                            }`}
-                        />
-                        <span className="text-[10px] tracking-[0.5em] text-cyan-400 opacity-60 uppercase">
-                            {systemStatus}
-                        </span>
-                    </div>
-
-                    <div className="h-16 flex items-center justify-center">
-                        {isActive &&
-                            !isThinking &&
-                            !isSpeaking &&
-                            transcript && (
-                                <p className="text-sm text-cyan-400/70 italic tracking-widest animate-pulse">
-                                    {`> ${transcript}`}
-                                </p>
-                            )}
-                    </div>
+            <div
+                className={`transition-all duration-1000 ease-in-out ${
+                    showOverlay
+                        ? "opacity-50 scale-98 brightness-90 blur-[0.5px]"
+                        : "opacity-100 scale-100 brightness-100 blur-none"
+                }`}
+            >
+                <TopHUD data={sysData} agentName={AGENT_NAME} />
+                <SideTelemetry data={sysData} />
+                <div className="flex items-center justify-center min-h-screen">
+                    <ArcReactor
+                        isListening={isActive || isPreWaking}
+                        isThinking={isThinking}
+                        isPreWaking={isPreWaking}
+                    />
                 </div>
+                <BottomHUD ping={sysData.ping} />
             </div>
 
-            <BottomHUD ping={sysData.ping} />
+            <ResponseFrame
+                show={showOverlay}
+                systemStatus={systemStatus}
+                response={response}
+                isThinking={isThinking}
+                transcript={transcript}
+            />
+
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] z-40 bg-[length:100%_4px]" />
         </main>
     );
 }
