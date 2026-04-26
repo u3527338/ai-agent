@@ -13,8 +13,8 @@ export const tacticalPrompt = `
 
 export const AGENT_NAME = "LUMOS";
 
-export const WAKE_WORD = "Lumos";
-export const SHUTDOWN_WORD = "Terminate";
+export const WAKE_WORD = "activate";
+export const SHUTDOWN_WORD = "terminate";
 export const WAKE_RESPONSE =
     "Systems online. Fact-extraction protocols stand at the ready, Sir.";
 export const STANDBY_RESPONSE = "System already online. I am here, Sir.";

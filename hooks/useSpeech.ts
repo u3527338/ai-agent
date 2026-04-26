@@ -110,10 +110,10 @@ export function useSpeech(
                     setIsPreWaking(true);
                     clearAllTimeouts();
 
-                    // 5 秒超時自動轉返藍色並講 Standby
+                    // 3 秒超時自動轉返藍色並講 Standby
                     preWakeTimeoutRef.current = setTimeout(() => {
                         commitState(true, false);
-                    }, 5000);
+                    }, 3000);
                 }
                 return;
             }
