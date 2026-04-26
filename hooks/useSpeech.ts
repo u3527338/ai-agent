@@ -1,6 +1,6 @@
 "use client";
 
-import { masterLang } from "@/helpers/constant";
+import { masterLang, WAKE_WORD } from "@/helpers/constant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useSpeech(
@@ -19,6 +19,11 @@ export function useSpeech(
     const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const preWakeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callbacksRef = useRef({ onWake, onShutDown });
+
+    const isPrewake = (cmd: string) => {
+        const regex = new RegExp(`^${WAKE_WORD}$`, "i");
+        return regex.test(cmd);
+    };
 
     // 確保 Callback 永遠係最新
     useEffect(() => {
@@ -50,7 +55,7 @@ export function useSpeech(
         (active: boolean, preWake: boolean, command?: string) => {
             clearAllTimeouts();
             const wasAlreadyAwake = isActiveRef.current;
-
+            console.log({ preWake });
             setIsPreWaking(preWake);
             setIsActive(active);
             isActiveRef.current = active;
@@ -77,9 +82,9 @@ export function useSpeech(
             const text = fullText.toLowerCase().trim();
             const wakeW = wakeWord.toLowerCase();
             const shutW = shutDownWord.toLowerCase();
-
+            console.log({ text, wakeW, shutW });
             // 1. 關機優先
-            if (text.includes(shutW) && isActiveRef.current) {
+            if (text === shutW && isActiveRef.current) {
                 clearAllTimeouts();
                 isActiveRef.current = false;
                 setIsActive(false);
@@ -91,7 +96,7 @@ export function useSpeech(
 
             // 2. 橘色預備期攔截 (isPreWaking)
             if (isPreWaking) {
-                const command = text.includes(wakeW)
+                const command = isPrewake(text)
                     ? getCleanCommand(text, wakeW)
                     : text;
                 if (command.length > 0) {
@@ -101,12 +106,13 @@ export function useSpeech(
             }
 
             // 3. 喚醒詞偵測 (Lumos)
-            if (text.includes(wakeW)) {
+            if (isPrewake(text)) {
                 if (!isActiveRef.current) {
                     // --- 初次喚醒 (Lumos -> Wake) ---
                     commitState(true, false);
                 } else {
                     // --- 已喚醒後 (Lumos -> Prewake) ---
+                    console.log(2);
                     setIsPreWaking(true);
                     clearAllTimeouts();
 
@@ -147,14 +153,20 @@ export function useSpeech(
 
         rec.onresult = (event: any) => {
             let interim = "";
+            let isFinalResult = false;
+
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 interim += event.results[i][0].transcript;
+                if (event.results[i].isFinal) isFinalResult = true;
             }
             const currentText = interim.toLowerCase().trim();
 
             // 視覺即時反饋
-            if (currentText.includes(wakeWord.toLowerCase()) && !isPreWaking) {
-                if (isActiveRef.current) setIsPreWaking(true);
+            if (isPrewake(currentText) && !isPreWaking) {
+                if (isActiveRef.current) {
+                    console.log(3);
+                    setIsPreWaking(true);
+                }
             }
 
             if (speechTimeoutRef.current)

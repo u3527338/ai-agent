@@ -3,51 +3,70 @@
 import { motion } from "framer-motion";
 
 export default function ArcReactor({
-    isListening,
+    isOnline,
+    isActive,
+    isSpeaking,
     isThinking,
     isPreWaking,
 }: {
-    isListening: boolean;
+    isOnline: boolean;
+    isActive: boolean;
+    isSpeaking: boolean;
     isThinking: boolean;
     isPreWaking?: boolean;
 }) {
     const getCoreColor = () => {
-        if (isThinking) return "#22d3ee";
-        if (isPreWaking) return "#facc15";
-        if (isListening) return "#22d3ee";
-        return "#0ea5e9";
+        if (!isOnline) return "#ef4444";
+
+        const stateColors = {
+            isSpeaking: "#0ea5e9",
+            isThinking: "#a855f7",
+            isPreWaking: "#facc15",
+            isDefault: "#22d3ee",
+            isInactive: "#555555",
+        } as const;
+
+        if (isSpeaking) return stateColors.isSpeaking;
+        if (isThinking) return stateColors.isThinking;
+        if (isPreWaking) return stateColors.isPreWaking;
+        if (!isActive) return stateColors.isInactive;
+
+        return stateColors.isDefault;
     };
 
     const activeColor = getCoreColor();
 
     return (
         <div className="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 md:scale-125 scale-100 transition-all duration-500">
+            {/* 1. 最外層虛線環 */}
             <motion.div
                 initial={{ rotate: 0 }}
                 animate={{ rotate: 360 }}
                 transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
                 className="absolute inset-0 border-[1px] rounded-full border-dashed transition-colors duration-500"
+                style={{ borderColor: `${activeColor}20` }}
+            />
+
+            <motion.div
+                initial={{ rotate: 45 }}
+                animate={{ rotate: -315 }}
+                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-2 border-[4px] rounded-full transition-colors duration-500"
                 style={{
-                    borderTopColor: `${activeColor}20`,
-                    borderBottomColor: `${activeColor}20`,
-                    borderLeftColor: `${activeColor}20`,
-                    borderRightColor: `${activeColor}20`,
+                    borderColor: `${activeColor}10`,
+                    borderStyle: "dashed",
+                    strokeDasharray: "20 10",
+                    clipPath: "polygon(0 0, 100% 0, 100% 30%, 0 30%)",
                 }}
             />
 
+            {/* 3. 6層動力環 (你提供的核心旋轉邏輯) */}
             {[...Array(6)].map((_, i) => (
                 <motion.div
                     key={i}
                     initial={{ rotate: i * 60 }}
                     animate={{
-                        rotate:
-                            isThinking || isPreWaking
-                                ? i % 2 === 0
-                                    ? i * 60 + 360
-                                    : i * 60 - 360
-                                : i % 2 === 0
-                                ? i * 60 + 360
-                                : i * 60 - 360,
+                        rotate: i % 2 === 0 ? i * 60 + 360 : i * 60 - 360,
                     }}
                     transition={{
                         rotate: {
@@ -76,16 +95,24 @@ export default function ArcReactor({
                 />
             ))}
 
+            {/* 4. 核心內層發光半環 */}
+            <motion.div
+                initial={{ rotate: 180 }}
+                animate={{ rotate: 540 }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[24%] border rounded-full border-l-transparent border-t-transparent transition-colors duration-500"
+                style={{ borderColor: `${activeColor}30` }}
+            />
+
+            {/* 5. ⚛️ 核心中心組件 */}
             <div
                 className="relative z-10 w-[35%] h-[35%] min-w-[80px] min-h-[80px] rounded-full border-[2px] flex flex-col items-center justify-center bg-[#050b10]/60 backdrop-blur-md transition-all duration-500"
                 style={{
-                    borderTopColor: activeColor,
-                    borderBottomColor: activeColor,
-                    borderLeftColor: activeColor,
-                    borderRightColor: activeColor,
+                    borderColor: activeColor,
                     boxShadow: `inset 0 0 20px ${activeColor}80`,
                 }}
             >
+                {/* 內部快速轉動細線環 */}
                 <motion.div
                     animate={{ rotate: -360 }}
                     transition={{
@@ -96,9 +123,9 @@ export default function ArcReactor({
                     className="absolute inset-1 border-[1px] rounded-full transition-colors duration-500"
                     style={{
                         borderTopColor: activeColor,
-                        borderBottomColor: `${activeColor}40`,
-                        borderLeftColor: `${activeColor}40`,
-                        borderRightColor: `${activeColor}40`,
+                        borderBottomColor: `${activeColor}20`,
+                        borderLeftColor: `${activeColor}20`,
+                        borderRightColor: `${activeColor}20`,
                     }}
                 />
 
@@ -106,17 +133,11 @@ export default function ArcReactor({
                     <motion.h1 className="flex flex-col items-center">
                         <motion.span
                             animate={{
-                                opacity:
-                                    isThinking || isPreWaking
-                                        ? [0.4, 1, 0.4]
-                                        : 1,
-                                textShadow:
-                                    isListening || isPreWaking
-                                        ? `0 0 15px ${activeColor}`
-                                        : `0 0 5px ${activeColor}`,
+                                opacity: isActive ? [0.4, 1, 0.4] : 0.2,
+                                textShadow: `0 0 15px ${activeColor}`,
                             }}
                             transition={{
-                                duration: isPreWaking ? 0.4 : 0.8,
+                                duration: isActive ? 0.6 : 0,
                                 repeat: Infinity,
                             }}
                             className="text-cyan-50 text-[clamp(8px,2vw,11px)] font-black tracking-[0.5em] ml-2"
@@ -129,27 +150,38 @@ export default function ArcReactor({
                         style={{ backgroundColor: `${activeColor}60` }}
                     />
                     <span
-                        className="text-[clamp(4px,1vw,5px)] mt-1 tracking-[0.3em] font-mono uppercase opacity-60 transition-colors duration-500"
+                        className="text-[clamp(4px,1vw,6px)] mt-1 tracking-[0.3em] font-mono uppercase opacity-60 transition-colors duration-500"
                         style={{ color: activeColor }}
                     >
-                        {isPreWaking
-                            ? "Syncing"
-                            : isListening
-                            ? "Illuminating"
+                        {isSpeaking
+                            ? "Transmitting"
                             : isThinking
-                            ? "Thinking"
-                            : "Secure"}
+                            ? "Synthesizing"
+                            : isPreWaking
+                            ? "Intercepting"
+                            : isActive
+                            ? "Operational"
+                            : "Standby"}
                     </span>
                 </div>
+
+                {/* 💡 找回來的「三角形靈魂」：三點式發光條 */}
+                {[0, 120, 240].map((deg) => (
+                    <div
+                        key={deg}
+                        className="absolute w-[4px] h-[1px] bg-white shadow-[0_0_8px_#fff] transition-all duration-500"
+                        style={{
+                            transform: `rotate(${deg}deg) translateY(-140%)`,
+                            opacity: isActive ? 1 : 0.1, // 未喚醒時變暗
+                        }}
+                    />
+                ))}
             </div>
 
+            {/* 底層氛圍擴散光 */}
             <motion.div
                 animate={{
-                    opacity: isPreWaking
-                        ? [0.2, 0.6, 0.2]
-                        : isListening
-                        ? [0.1, 0.4, 0.1]
-                        : 0.05,
+                    opacity: isPreWaking ? [0.2, 0.6, 0.2] : 0.05,
                     scale: isPreWaking ? [1, 1.1, 1] : 1,
                 }}
                 transition={{

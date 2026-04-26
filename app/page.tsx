@@ -59,16 +59,8 @@ export default function Home() {
         const hasValidResponse = !!(
             response && ![WAKE_RESPONSE, STANDBY_RESPONSE].includes(response)
         );
-        return (isSpeaking || (hasValidResponse && !isPreWaking)) && isActive;
+        return (hasValidResponse && !isPreWaking && isActive) || isSpeaking;
     }, [isThinking, isSpeaking, response, isActive, isPreWaking]);
-
-    const systemStatus = useMemo(() => {
-        if (isThinking) return "ANALYSING";
-        if (isSpeaking) return "TRANSMITTING";
-        if (isPreWaking) return "SYNCING";
-        if (isActive) return "LISTENING";
-        return "STANDBY";
-    }, [isThinking, isSpeaking, isActive, isPreWaking]);
 
     return (
         <main
@@ -96,7 +88,9 @@ export default function Home() {
                 <SideTelemetry data={sysData} />
                 <div className="flex items-center justify-center min-h-screen">
                     <ArcReactor
-                        isListening={isActive || isPreWaking}
+                        isOnline={sysData.isOnline}
+                        isActive={isActive}
+                        isSpeaking={isSpeaking}
                         isThinking={isThinking}
                         isPreWaking={isPreWaking}
                     />
@@ -106,9 +100,7 @@ export default function Home() {
 
             <ResponseFrame
                 show={showOverlay}
-                systemStatus={systemStatus}
                 response={response}
-                isThinking={isThinking}
                 transcript={transcript}
             />
 
