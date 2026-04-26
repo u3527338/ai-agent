@@ -20,17 +20,57 @@ export function useSpeech(
     const preWakeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callbacksRef = useRef({ onWake, onShutDown });
 
+    // 確保 Callback 永遠係最新
     useEffect(() => {
         callbacksRef.current = { onWake, onShutDown };
     }, [onWake, onShutDown]);
 
-    const resetTranscript = useCallback(() => setTranscript(""), []);
+    // --- 🛠️ 提取公共行為 (Common Behaviors) ---
 
+    // 強制重置識別器並清空 Buffer
     const forceReset = useCallback(() => {
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            try {
+                recognitionRef.current.stop();
+            } catch (e) {
+                console.error("Speech stop error:", e);
+            }
         }
+        setTranscript("");
     }, []);
+
+    // 清理所有計時器
+    const clearAllTimeouts = useCallback(() => {
+        if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+        if (preWakeTimeoutRef.current) clearTimeout(preWakeTimeoutRef.current);
+    }, []);
+
+    // 統一提交狀態切換
+    const commitState = useCallback(
+        (active: boolean, preWake: boolean, command?: string) => {
+            clearAllTimeouts();
+            const wasAlreadyAwake = isActiveRef.current;
+
+            setIsPreWaking(preWake);
+            setIsActive(active);
+            isActiveRef.current = active;
+
+            // 只有喺確定要執行動作（非橘色等待期）時，先觸發回調同重置
+            if (active && !preWake) {
+                callbacksRef.current.onWake(wasAlreadyAwake, command);
+                forceReset();
+            }
+        },
+        [clearAllTimeouts, forceReset]
+    );
+
+    // 提取指令內容
+    const getCleanCommand = useCallback((text: string, trigger: string) => {
+        const regex = new RegExp(`.*${trigger}\\s*`, "i");
+        return text.replace(regex, "").trim();
+    }, []);
+
+    // --- 🧠 核心處理邏輯 ---
 
     const processFinalText = useCallback(
         (fullText: string) => {
@@ -38,75 +78,61 @@ export function useSpeech(
             const wakeW = wakeWord.toLowerCase();
             const shutW = shutDownWord.toLowerCase();
 
-            // 1. 橘色預備期攔截 (必須係喊完 Lumos 之後嘅 5 秒內)
+            // 1. 關機優先
+            if (text.includes(shutW) && isActiveRef.current) {
+                clearAllTimeouts();
+                isActiveRef.current = false;
+                setIsActive(false);
+                setIsPreWaking(false);
+                callbacksRef.current.onShutDown();
+                forceReset();
+                return;
+            }
+
+            // 2. 橘色預備期攔截 (isPreWaking)
             if (isPreWaking) {
-                if (preWakeTimeoutRef.current)
-                    clearTimeout(preWakeTimeoutRef.current);
-
-                const regex = new RegExp(`.*${wakeW}\\s*`, "i");
-                const command = text.replace(regex, "").trim();
-
+                const command = text.includes(wakeW)
+                    ? getCleanCommand(text, wakeW)
+                    : text;
                 if (command.length > 0) {
-                    setIsPreWaking(false);
-                    isActiveRef.current = true;
-                    setIsActive(true);
-                    callbacksRef.current.onWake(true, command);
-                    resetTranscript();
-                    forceReset();
+                    commitState(true, false, command);
                     return;
                 }
             }
 
-            // 2. 喚醒詞偵測 (只有包含 Lumos 嘅說話先會處理)
+            // 3. 喚醒詞偵測 (Lumos)
             if (text.includes(wakeW)) {
-                const wasAlreadyAwake = isActiveRef.current;
-                const regex = new RegExp(`.*${wakeW}\\s*`, "i");
-                const command = text.replace(regex, "").trim();
-
-                if (command.length > 1) {
-                    // 「Lumos + 指令」
-                    if (preWakeTimeoutRef.current)
-                        clearTimeout(preWakeTimeoutRef.current);
-                    setIsPreWaking(false);
-                    isActiveRef.current = true;
-                    setIsActive(true);
-                    callbacksRef.current.onWake(wasAlreadyAwake, command);
-                    resetTranscript();
-                    forceReset();
-                } else if (!isPreWaking) {
-                    // 單純 "Lumos"
+                if (!isActiveRef.current) {
+                    // --- 初次喚醒 (Lumos -> Wake) ---
+                    commitState(true, false);
+                } else {
+                    // --- 已喚醒後 (Lumos -> Prewake) ---
                     setIsPreWaking(true);
-                    if (preWakeTimeoutRef.current)
-                        clearTimeout(preWakeTimeoutRef.current);
+                    clearAllTimeouts();
 
+                    // 5 秒超時自動轉返藍色並講 Standby
                     preWakeTimeoutRef.current = setTimeout(() => {
-                        setIsPreWaking(false);
-                        isActiveRef.current = true;
-                        setIsActive(true);
-                        callbacksRef.current.onWake(wasAlreadyAwake);
-                        resetTranscript();
-                        forceReset();
+                        commitState(true, false);
                     }, 5000);
                 }
                 return;
             }
 
-            // 3. 關機偵測
-            if (text.includes(shutW) && isActiveRef.current) {
-                isActiveRef.current = false;
-                setIsActive(false);
-                forceReset();
-                callbacksRef.current.onShutDown();
-                resetTranscript();
-                return;
-            }
-
-            // ⚛️ 關鍵修正：移除咗原本會將所有 text 塞入 setTranscript 嘅邏輯
-            // 依家只有當說話包含 wakeWord 或者處於橘色預備期，先會觸發指令
-            resetTranscript();
+            // 4. 無匹配則清空
+            setTranscript("");
         },
-        [wakeWord, shutDownWord, resetTranscript, isPreWaking, forceReset]
+        [
+            wakeWord,
+            shutDownWord,
+            isPreWaking,
+            commitState,
+            getCleanCommand,
+            forceReset,
+            clearAllTimeouts,
+        ]
     );
+
+    // --- 🎙️ Speech Recognition 初始化 ---
 
     const initRecognition = useCallback(() => {
         const SpeechRecognition =
@@ -120,24 +146,29 @@ export function useSpeech(
         rec.lang = masterLang;
 
         rec.onresult = (event: any) => {
-            let interimTranscript = "";
+            let interim = "";
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                interimTranscript += event.results[i][0].transcript;
+                interim += event.results[i][0].transcript;
             }
-            const currentText = interimTranscript.toLowerCase().trim();
+            const currentText = interim.toLowerCase().trim();
+
+            // 視覺即時反饋
+            if (currentText.includes(wakeWord.toLowerCase()) && !isPreWaking) {
+                if (isActiveRef.current) setIsPreWaking(true);
+            }
 
             if (speechTimeoutRef.current)
                 clearTimeout(speechTimeoutRef.current);
             speechTimeoutRef.current = setTimeout(() => {
-                if (currentText.length > 0) {
-                    processFinalText(currentText);
-                }
+                if (currentText.length > 0) processFinalText(currentText);
             }, 400);
         };
 
         rec.onstart = () => setIsListening(true);
+        rec.onerror = () => setIsListening(false);
         rec.onend = () => {
             setIsListening(false);
+            // 自動重啟以保持監聽
             if (recognitionRef.current) {
                 setTimeout(() => {
                     try {
@@ -149,22 +180,19 @@ export function useSpeech(
 
         recognitionRef.current = rec;
         rec.start();
-    }, [wakeWord, processFinalText]);
+    }, [wakeWord, processFinalText, isPreWaking]);
 
     useEffect(() => {
         initRecognition();
         return () => {
-            if (speechTimeoutRef.current)
-                clearTimeout(speechTimeoutRef.current);
-            if (preWakeTimeoutRef.current)
-                clearTimeout(preWakeTimeoutRef.current);
+            clearAllTimeouts();
             if (recognitionRef.current) {
                 recognitionRef.current.onend = null;
                 recognitionRef.current.stop();
                 recognitionRef.current = null;
             }
         };
-    }, [initRecognition]);
+    }, [initRecognition, clearAllTimeouts]);
 
     return {
         transcript,
@@ -172,6 +200,6 @@ export function useSpeech(
         isActive,
         isPreWaking,
         setIsActive,
-        resetTranscript,
+        resetTranscript: forceReset,
     };
 }

@@ -37,6 +37,9 @@ export default function Home() {
     );
 
     const handleShutDown = useCallback(() => {
+        if (typeof window !== "undefined") {
+            window.speechSynthesis.cancel();
+        }
         const msg = SHUTDOWN_RESPONSE;
         setResponse(msg);
         speak(msg);
@@ -61,7 +64,7 @@ export default function Home() {
             isActive &&
             !isPreWaking
         );
-    }, [isThinking, isSpeaking, response, isActive]);
+    }, [isThinking, isSpeaking, response, isActive, isPreWaking]);
 
     const systemStatus = useMemo(() => {
         if (isThinking) return "ANALYSING";
