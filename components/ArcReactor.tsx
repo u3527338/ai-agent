@@ -1,5 +1,6 @@
 "use client";
 
+import { THEME } from "@/helpers/constant";
 import { motion } from "framer-motion";
 
 export default function ArcReactor({
@@ -140,7 +141,7 @@ export default function ArcReactor({
                                 duration: isActive ? 0.6 : 0,
                                 repeat: Infinity,
                             }}
-                            className="text-cyan-50 text-[clamp(8px,2vw,11px)] font-black tracking-[0.5em] ml-2"
+                            className={`${THEME.primary} text-[clamp(8px,2vw,11px)] font-black tracking-[0.5em] ml-2`}
                         >
                             LUMOS
                         </motion.span>
@@ -167,14 +168,13 @@ export default function ArcReactor({
                     </span>
                 </div>
 
-                {/* 💡 找回來的「三角形靈魂」：三點式發光條 */}
                 {[0, 120, 240].map((deg) => (
                     <div
                         key={deg}
                         className="absolute w-[4px] h-[1px] bg-white shadow-[0_0_8px_#fff] transition-all duration-500"
                         style={{
                             transform: `rotate(${deg}deg) translateY(-140%)`,
-                            opacity: isActive ? 1 : 0.1, // 未喚醒時變暗
+                            opacity: isActive ? 1 : 0.2,
                         }}
                     />
                 ))}

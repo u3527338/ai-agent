@@ -23,3 +23,16 @@ export const SHUTDOWN_RESPONSE =
 
 export const masterLang = "en-GB";
 export const lumosLang = "en-GB";
+
+export const BASE_COLOR = "cyan";
+
+export const THEME = {
+    hex: BASE_COLOR,
+    primary: `text-${BASE_COLOR}-400`,
+    muted: `text-${BASE_COLOR}-500/40`,
+    border: `border-${BASE_COLOR}-500/10`,
+    borderStrong: `border-${BASE_COLOR}-500/30`,
+    bg: `bg-${BASE_COLOR}-400`,
+    shimmer: `via-${BASE_COLOR}-400/10`,
+    glow: `shadow-[0_0_8px_${BASE_COLOR}]`,
+};

@@ -11,8 +11,7 @@ export function useTelemetry() {
         city: string | null;
         battery: string | null;
         isCharging: boolean | null;
-        memory: { used: string; total: string; percent: number } | null;
-        gpu: { model: string; load: number } | null;
+        memory: { used: number; total: number; percent: number } | null;
         error: boolean;
         isOnline: boolean;
     }>({
@@ -23,29 +22,10 @@ export function useTelemetry() {
         battery: null,
         isCharging: null,
         memory: null,
-        gpu: null,
         error: false,
         isOnline: true,
     });
 
-    // ⚛️ 新增：獲取硬體監控數據
-    const fetchHardware = useCallback(async () => {
-        try {
-            const res = await fetch("/api/telemetry");
-            const data = await res.json();
-            if (!data.error) {
-                setSysData((prev) => ({
-                    ...prev,
-                    memory: data.memory,
-                    gpu: data.gpu,
-                }));
-            }
-        } catch (e) {
-            console.error("Hardware telemetry offline");
-        }
-    }, []);
-
-    // 🌍 你原本的天氣/定位邏輯
     const fetchSpecs = useCallback(async () => {
         const cachedData = localStorage.getItem("lumos_telemetry_cache");
         const now = Date.now();
@@ -63,12 +43,12 @@ export function useTelemetry() {
         }
 
         try {
-            const fallback = await axios.get("https://ipapi.co/json/");
+            const ipRes = await axios.get("https://ipapi.co/json/");
             const {
                 latitude: lat,
                 longitude: lon,
                 city: cityName,
-            } = fallback.data;
+            } = ipRes.data;
 
             const weatherRes = await axios.get(
                 `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
@@ -78,7 +58,7 @@ export function useTelemetry() {
                 temp: Math.round(
                     weatherRes.data.current_weather.temperature
                 ).toString(),
-                loc: `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E`,
+                loc: `${lat.toFixed(2)}° N, ${lon.toFixed(2)}° E`,
                 city: cityName.toUpperCase(),
             };
 
@@ -89,6 +69,22 @@ export function useTelemetry() {
             );
         } catch (e) {
             setSysData((prev) => ({ ...prev, error: true }));
+        }
+    }, []);
+
+    const measureHardware = useCallback(() => {
+        const mem = (performance as any).memory;
+        if (mem) {
+            const used = Math.round(mem.usedJSHeapSize / 1024 / 1024);
+            const total = Math.round(mem.jsHeapSizeLimit / 1024 / 1024);
+            setSysData((p) => ({
+                ...p,
+                memory: {
+                    used,
+                    total,
+                    percent: Math.round((used / total) * 100),
+                },
+            }));
         }
     }, []);
 
@@ -110,8 +106,11 @@ export function useTelemetry() {
     useEffect(() => {
         fetchSpecs();
         measurePing();
+        measureHardware();
 
-        // 🔋 電池監控
+        const pingInterval = setInterval(measurePing, 5000);
+        const hwInterval = setInterval(measureHardware, 1000); // 1秒一次，對應 Graph 滾動
+
         if (
             typeof navigator !== "undefined" &&
             "getBattery" in (navigator as any)
@@ -129,15 +128,11 @@ export function useTelemetry() {
             });
         }
 
-        // ⏱️ 設定輪詢
-        // const hwInterval = setInterval(fetchHardware, 3000); // 3秒更新一次硬體
-        const pingInterval = setInterval(measurePing, 5000);
-
         return () => {
-            // clearInterval(hwInterval);
             clearInterval(pingInterval);
+            clearInterval(hwInterval);
         };
-    }, [fetchSpecs, fetchHardware, measurePing]);
+    }, [fetchSpecs, measurePing, measureHardware]);
 
     return { sysData };
 }

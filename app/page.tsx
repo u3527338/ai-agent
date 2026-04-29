@@ -1,19 +1,24 @@
 "use client";
 
 import ArcReactor from "@/components/ArcReactor";
-import { BottomHUD, SideTelemetry, TopHUD } from "@/components/HUD";
+import MemoryPressureGraph, {
+    BottomHUD,
+    SideTelemetry,
+    TopHUD,
+} from "@/components/HUD";
 import ResponseFrame from "@/components/ResponseFrame";
 import {
     AGENT_NAME,
     SHUTDOWN_RESPONSE,
     STANDBY_RESPONSE,
+    THEME,
     WAKE_RESPONSE,
 } from "@/helpers/constant";
 import { getShutdownWord, getWakeWord } from "@/helpers/function";
 import { useChat } from "@/hooks/useChat";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useTelemetry } from "@/hooks/useTelemetry";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function Home() {
     const { sysData } = useTelemetry();
@@ -21,11 +26,24 @@ export default function Home() {
     const { isThinking, isSpeaking, askLumos, response, setResponse, speak } =
         useChat();
 
+    // ⚛️ Memory Graph 歷史數據管理
+    const [history, setHistory] = useState<{ value: number }[]>(
+        new Array(40).fill({ value: 0 })
+    );
+
+    useEffect(() => {
+        if (sysData.memory) {
+            setHistory((prev) => [
+                ...prev.slice(1),
+                { value: sysData.memory!.percent },
+            ]);
+        }
+    }, [sysData.memory]);
+
     // ⚛️ 唯一指令入口
     const handleWake = useCallback(
         (isAlreadyAwake: boolean, command?: string) => {
             if (command && command.length > 1) {
-                // 只有包含 Lumos 嘅指令先會嚟到呢度
                 askLumos(command);
             } else {
                 const msg = isAlreadyAwake ? STANDBY_RESPONSE : WAKE_RESPONSE;
@@ -45,32 +63,31 @@ export default function Home() {
         speak(msg);
     }, [speak, setResponse]);
 
-    const { transcript, isActive, isPreWaking, resetTranscript } = useSpeech(
+    const { transcript, isActive, isPreWaking } = useSpeech(
         getWakeWord,
         getShutdownWord,
         handleWake,
         handleShutDown
     );
 
-    // ⚛️ 移除咗原本自動 askLumos(transcript) 嘅 useEffect
-    // 依家 transcript 只用嚟喺 ResponseFrame 顯示你講緊乜，唔會自動發送指令
-
     const showOverlay = useMemo((): boolean => {
         const hasValidResponse = !!(
             response && ![WAKE_RESPONSE, STANDBY_RESPONSE].includes(response)
         );
         return (hasValidResponse && !isPreWaking && isActive) || isSpeaking;
-    }, [isThinking, isSpeaking, response, isActive, isPreWaking]);
+    }, [isSpeaking, response, isActive, isPreWaking]);
 
     return (
         <main
-            className="min-h-screen bg-[#020508] text-cyan-500 font-mono overflow-hidden relative select-none"
+            className={`min-h-screen bg-[#020508] ${THEME.primary} font-mono overflow-hidden relative select-none`}
             onClick={() => !hasInteracted && setHasInteracted(true)}
         >
             {!hasInteracted && (
                 <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl">
                     <div className="text-center p-16 border border-cyan-500/20 rounded-full animate-pulse cursor-pointer">
-                        <p className="text-cyan-400 tracking-[1.5em] font-black text-[10px] uppercase">
+                        <p
+                            className={`${THEME.primary} tracking-[1.5em] font-black text-[10px] uppercase`}
+                        >
                             INITIALIZE NEURAL LINK
                         </p>
                     </div>
@@ -86,6 +103,11 @@ export default function Home() {
             >
                 <TopHUD data={sysData} agentName={AGENT_NAME} />
                 <SideTelemetry data={sysData} />
+
+                <div className="absolute bottom-10 left-10 z-50 w-64">
+                    <MemoryPressureGraph data={history} />
+                </div>
+
                 <div className="flex items-center justify-center min-h-screen">
                     <ArcReactor
                         isOnline={sysData.isOnline}
