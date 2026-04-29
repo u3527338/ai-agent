@@ -3,8 +3,7 @@
 import ArcReactor from "@/components/ArcReactor";
 import MemoryPressureGraph, {
     BottomHUD,
-    SideTelemetry,
-    TopHUD,
+    TopHUD
 } from "@/components/HUD";
 import ResponseFrame from "@/components/ResponseFrame";
 import {
@@ -102,7 +101,6 @@ export default function Home() {
                 }`}
             >
                 <TopHUD data={sysData} agentName={AGENT_NAME} />
-                <SideTelemetry data={sysData} />
 
                 <div className="absolute bottom-10 left-10 z-50 w-64">
                     <MemoryPressureGraph data={history} />
