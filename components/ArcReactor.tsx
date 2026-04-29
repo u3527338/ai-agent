@@ -1,6 +1,7 @@
 "use client";
 
 import { THEME } from "@/helpers/constant";
+import { getCoreColor } from "@/helpers/function";
 import { motion } from "framer-motion";
 
 export default function ArcReactor({
@@ -14,28 +15,11 @@ export default function ArcReactor({
     isActive: boolean;
     isSpeaking: boolean;
     isThinking: boolean;
-    isPreWaking?: boolean;
+    isPreWaking: boolean;
 }) {
-    const getCoreColor = () => {
-        if (!isOnline) return "#ef4444";
-
-        const stateColors = {
-            isSpeaking: "#0ea5e9",
-            isThinking: "#a855f7",
-            isPreWaking: "#facc15",
-            isDefault: "#22d3ee",
-            isInactive: "#555555",
-        } as const;
-
-        if (isSpeaking) return stateColors.isSpeaking;
-        if (isThinking) return stateColors.isThinking;
-        if (isPreWaking) return stateColors.isPreWaking;
-        if (!isActive) return stateColors.isInactive;
-
-        return stateColors.isDefault;
-    };
-
-    const activeColor = getCoreColor();
+    const activeColor = getCoreColor({
+        state: { isOnline, isSpeaking, isThinking, isPreWaking, isActive },
+    });
 
     return (
         <div className="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 md:scale-125 scale-100 transition-all duration-500">

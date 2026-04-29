@@ -210,59 +210,61 @@ export default function MemoryPressureGraph({
         latestValue > 80 ? "#ef4444" : latestValue > 45 ? "#f59e0b" : THEME.hex;
 
     return (
-        <div className={`w-full h-24 bg-transparent p-2`}>
-            <div className="flex justify-between items-center mb-1">
-                <span
-                    className={`text-[9px] font-bold ${THEME.muted} uppercase tracking-widest`}
-                >
-                    Memory Pressure
-                </span>
-                <span
-                    className="text-[10px] font-mono"
-                    style={{ color: themeColor }}
-                >
-                    {latestValue}%
-                </span>
+        <div className="absolute bottom-10 left-10 z-50 w-64">
+            <div className={`w-full h-24 bg-transparent p-2`}>
+                <div className="flex justify-between items-center mb-1">
+                    <span
+                        className={`text-[9px] font-bold ${THEME.muted} uppercase tracking-widest`}
+                    >
+                        Memory Pressure
+                    </span>
+                    <span
+                        className="text-[10px] font-mono"
+                        style={{ color: themeColor }}
+                    >
+                        {latestValue}%
+                    </span>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data}>
+                        <defs>
+                            <linearGradient
+                                id="colorMem"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop
+                                    offset="5%"
+                                    stopColor={themeColor}
+                                    stopOpacity={0.3}
+                                />
+                                <stop
+                                    offset="95%"
+                                    stopColor={themeColor}
+                                    stopOpacity={0}
+                                />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                            vertical={false}
+                            stroke="#ffffff"
+                            opacity={0.05}
+                        />
+                        <XAxis hide />
+                        <YAxis domain={[0, 100]} hide />
+                        <Area
+                            type="monotone"
+                            dataKey="value"
+                            stroke={themeColor}
+                            strokeWidth={1.5}
+                            fill="url(#colorMem)"
+                            isAnimationActive={false}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                    <defs>
-                        <linearGradient
-                            id="colorMem"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                        >
-                            <stop
-                                offset="5%"
-                                stopColor={themeColor}
-                                stopOpacity={0.3}
-                            />
-                            <stop
-                                offset="95%"
-                                stopColor={themeColor}
-                                stopOpacity={0}
-                            />
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                        vertical={false}
-                        stroke="#ffffff"
-                        opacity={0.05}
-                    />
-                    <XAxis hide />
-                    <YAxis domain={[0, 100]} hide />
-                    <Area
-                        type="monotone"
-                        dataKey="value"
-                        stroke={themeColor}
-                        strokeWidth={1.5}
-                        fill="url(#colorMem)"
-                        isAnimationActive={false}
-                    />
-                </AreaChart>
-            </ResponsiveContainer>
         </div>
     );
 }

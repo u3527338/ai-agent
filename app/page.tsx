@@ -1,13 +1,8 @@
 "use client";
 
-import ArcReactor from "@/components/ArcReactor";
-import MemoryPressureGraph, {
-    BottomHUD,
-    TopHUD
-} from "@/components/HUD";
-import ResponseFrame from "@/components/ResponseFrame";
+import ElectronBall from "@/components/ElectronBall";
+import NeuralInterface from "@/components/NeuralInterface";
 import {
-    AGENT_NAME,
     SHUTDOWN_RESPONSE,
     STANDBY_RESPONSE,
     THEME,
@@ -22,24 +17,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 export default function Home() {
     const { sysData } = useTelemetry();
     const [hasInteracted, setHasInteracted] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isElectron, setIsElectron] = useState(false);
+
+    useEffect(() => {
+        const check =
+            typeof window !== "undefined" &&
+            (!!(window as any).ipcRenderer ||
+                navigator.userAgent.includes("Lumos-Electron"));
+        setIsElectron(check);
+    }, []);
+
     const { isThinking, isSpeaking, askLumos, response, setResponse, speak } =
         useChat();
 
-    // ⚛️ Memory Graph 歷史數據管理
-    const [history, setHistory] = useState<{ value: number }[]>(
-        new Array(40).fill({ value: 0 })
-    );
-
-    useEffect(() => {
-        if (sysData.memory) {
-            setHistory((prev) => [
-                ...prev.slice(1),
-                { value: sysData.memory!.percent },
-            ]);
-        }
-    }, [sysData.memory]);
-
-    // ⚛️ 唯一指令入口
+    // ⚛️ 指令入口 (保持不變)
     const handleWake = useCallback(
         (isAlreadyAwake: boolean, command?: string) => {
             if (command && command.length > 1) {
@@ -54,9 +46,7 @@ export default function Home() {
     );
 
     const handleShutDown = useCallback(() => {
-        if (typeof window !== "undefined") {
-            window.speechSynthesis.cancel();
-        }
+        if (typeof window !== "undefined") window.speechSynthesis.cancel();
         const msg = SHUTDOWN_RESPONSE;
         setResponse(msg);
         speak(msg);
@@ -69,7 +59,13 @@ export default function Home() {
         handleShutDown
     );
 
-    const showOverlay = useMemo((): boolean => {
+    // ⚛️ 狀態判定
+    const isExpanded = useMemo(() => {
+        if (!isElectron) return true;
+        return isHovered || isSpeaking || isThinking || isActive;
+    }, [isElectron, isHovered, isSpeaking, isThinking, isActive]);
+
+    const showOverlay = useMemo(() => {
         const hasValidResponse = !!(
             response && ![WAKE_RESPONSE, STANDBY_RESPONSE].includes(response)
         );
@@ -78,53 +74,57 @@ export default function Home() {
 
     return (
         <main
-            className={`min-h-screen bg-[#020508] ${THEME.primary} font-mono overflow-hidden relative select-none`}
-            onClick={() => !hasInteracted && setHasInteracted(true)}
+            className="min-h-screen w-full relative overflow-hidden select-none pointer-events-none bg-transparent"
+            style={{ color: "inherit" }}
         >
-            {!hasInteracted && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl">
-                    <div className="text-center p-16 border border-cyan-500/20 rounded-full animate-pulse cursor-pointer">
-                        <p
-                            className={`${THEME.primary} tracking-[1.5em] font-black text-[10px] uppercase`}
-                        >
-                            INITIALIZE NEURAL LINK
-                        </p>
-                    </div>
-                </div>
-            )}
-
+            {/* 1. 建立一個專門負責「視覺樣式」的容器層 */}
             <div
-                className={`transition-all duration-1000 ease-in-out ${
-                    showOverlay
-                        ? "opacity-50 scale-98 brightness-90 blur-[0.5px]"
-                        : "opacity-100 scale-100 brightness-100 blur-none"
-                }`}
+                className={`absolute inset-0 flex flex-col ${THEME.primary} font-mono`}
             >
-                <TopHUD data={sysData} agentName={AGENT_NAME} />
+                {/* 1. 處理 Electron 專屬的物理層 (感應與狀態球) */}
+                <ElectronBall
+                    isElectron={isElectron}
+                    isExpanded={isExpanded}
+                    onHoverChange={setIsHovered}
+                    state={{
+                        isOnline: sysData.isOnline,
+                        isSpeaking,
+                        isThinking,
+                        isPreWaking,
+                        isActive,
+                    }}
+                />
 
-                <div className="absolute bottom-10 left-10 z-50 w-64">
-                    <MemoryPressureGraph data={history} />
-                </div>
+                {/* 2. 處理初始化遮罩 */}
+                {!hasInteracted && (
+                    <div
+                        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-3xl pointer-events-auto cursor-pointer"
+                        onClick={() => setHasInteracted(true)}
+                    >
+                        <div className="text-center p-16 border border-cyan-500/20 rounded-full animate-pulse">
+                            <p
+                                className={`${THEME.primary} tracking-[1.5em] font-black text-[10px] uppercase`}
+                            >
+                                INITIALIZE NEURAL LINK
+                            </p>
+                        </div>
+                    </div>
+                )}
 
-                <div className="flex items-center justify-center min-h-screen">
-                    <ArcReactor
-                        isOnline={sysData.isOnline}
-                        isActive={isActive}
-                        isSpeaking={isSpeaking}
-                        isThinking={isThinking}
-                        isPreWaking={isPreWaking}
-                    />
-                </div>
-                <BottomHUD ping={sysData.ping} />
+                {/* 3. 處理 HUD 內容與動畫 */}
+                <NeuralInterface
+                    isExpanded={isExpanded}
+                    isElectron={isElectron}
+                    sysData={sysData}
+                    showOverlay={showOverlay}
+                    isActive={isActive}
+                    isSpeaking={isSpeaking}
+                    isThinking={isThinking}
+                    isPreWaking={isPreWaking}
+                    response={response}
+                    transcript={transcript}
+                />
             </div>
-
-            <ResponseFrame
-                show={showOverlay}
-                response={response}
-                transcript={transcript}
-            />
-
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] z-40 bg-[length:100%_4px]" />
         </main>
     );
 }
