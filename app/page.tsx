@@ -62,8 +62,8 @@ export default function Home() {
     // ⚛️ 狀態判定
     const isExpanded = useMemo(() => {
         if (!isElectron) return true;
-        return isHovered || isSpeaking || isThinking || isActive;
-    }, [isElectron, isHovered, isSpeaking, isThinking, isActive]);
+        return isHovered;
+    }, [isElectron, isHovered]);
 
     const showOverlay = useMemo(() => {
         const hasValidResponse = !!(

@@ -1,6 +1,6 @@
 "use client";
 
-import { BASE_COLOR, THEME } from "@/helpers/constant";
+import { THEME } from "@/helpers/constant";
 import {
     Activity,
     BatteryCharging,
@@ -31,7 +31,7 @@ const getStatusColor = (isOffline: boolean, defaultClass: string) =>
 function Skeleton({ width = "w-12" }: { width?: string }) {
     return (
         <span
-            className={`inline-block h-2 ${width} bg-${BASE_COLOR}-900/30 animate-pulse rounded-sm relative overflow-hidden`}
+            className={`inline-block h-2 ${width} bg-cyan-900/30 animate-pulse rounded-sm relative overflow-hidden`}
         >
             <span
                 className={`absolute inset-0 bg-gradient-to-r from-transparent ${THEME.shimmer} to-transparent animate-[shimmer_1.5s_infinite]`}
