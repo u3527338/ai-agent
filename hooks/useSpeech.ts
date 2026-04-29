@@ -1,6 +1,6 @@
 "use client";
 
-import { masterLang, WAKE_WORD } from "@/helpers/constant";
+import { masterLang } from "@/helpers/constant";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useSpeech(
@@ -14,7 +14,6 @@ export function useSpeech(
     const [isActive, setIsActive] = useState(false);
     const [isPreWaking, setIsPreWaking] = useState(false);
 
-    // --- 核心同步狀態 ---
     const isActiveRef = useRef(false);
     const isPreWakingRef = useRef(false);
     const lastWakeTimeRef = useRef<number>(0);
@@ -23,11 +22,6 @@ export function useSpeech(
     const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const preWakeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callbacksRef = useRef({ onWake, onShutDown });
-
-    const hasWakeWord = (cmd: string) => {
-        const regex = new RegExp(`${WAKE_WORD}`, "i");
-        return regex.test(cmd);
-    };
 
     useEffect(() => {
         callbacksRef.current = { onWake, onShutDown };
@@ -78,35 +72,22 @@ export function useSpeech(
             const shutW = shutDownWord.toLowerCase();
             const now = Date.now();
 
-            console.log(
-                `[SPEECH] Text: "${text}" | State: ${
-                    isPreWakingRef.current ? "ORANGE" : "BLUE"
-                } | Final: ${isFinal}`
-            );
-
             if (text === shutW && isActiveRef.current) {
                 commitState(false, false);
                 callbacksRef.current.onShutDown();
                 return;
             }
 
-            // 💡 橘色狀態：處理指令（更嚴格的攔截門檻）
             if (isPreWakingRef.current) {
                 const command = getCleanCommand(text, wakeW);
-                if (command.length > 0) {
-                    // 只有在定稿 (isFinal) 或句子長到很有把握 (10) 時才提交
-                    if (isFinal || command.length > 10) {
-                        commitState(true, false, command);
-                        return;
-                    }
+                if (command.length > 0 && (isFinal || command.length > 10)) {
+                    commitState(true, false, command);
+                    return;
                 }
             }
 
-            // 💡 藍色狀態：喚醒
-            if (hasWakeWord(text)) {
+            if (text.includes(wakeW)) {
                 const immediateCommand = getCleanCommand(text, wakeW);
-
-                // 只有連著說的指令夠長 (>6) 才會直接執行，否則進入橘色等待
                 if (immediateCommand.length > 6) {
                     commitState(true, false, immediateCommand);
                     return;
@@ -120,11 +101,11 @@ export function useSpeech(
                     now - lastWakeTimeRef.current > 600
                 ) {
                     commitState(true, true);
-                    preWakeTimeoutRef.current = setTimeout(() => {
-                        commitState(true, false);
-                    }, 5000);
+                    preWakeTimeoutRef.current = setTimeout(
+                        () => commitState(true, false),
+                        5000
+                    );
                 }
-                return;
             }
         },
         [wakeWord, shutDownWord, commitState, getCleanCommand]
@@ -154,16 +135,13 @@ export function useSpeech(
 
             if (speechTimeoutRef.current)
                 clearTimeout(speechTimeoutRef.current);
-
-            // 💡 核心優化：動態延遲控制
-            let delay = 300;
-            if (isPreWakingRef.current) {
-                // 如果在聽指令模式，給予極大耐心 (1秒)，防止長句斷裂
-                delay = isFinalResult ? 400 : 1000;
-            } else {
-                // 喚醒模式下追求快，減少堆疊文字
-                delay = isFinalResult ? 100 : 300;
-            }
+            const delay = isPreWakingRef.current
+                ? isFinalResult
+                    ? 400
+                    : 1000
+                : isFinalResult
+                ? 100
+                : 300;
 
             speechTimeoutRef.current = setTimeout(() => {
                 processFinalText(currentText, isFinalResult);
@@ -172,17 +150,14 @@ export function useSpeech(
         };
 
         rec.onstart = () => setIsListening(true);
-        rec.onerror = (e: any) => {
-            if (e.error === "aborted") return;
-            setIsListening(false);
-        };
-
+        rec.onerror = () => setIsListening(false);
         rec.onend = () => {
             setIsListening(false);
+            // ⚛️ Electron 重啟機制
             if (recognitionRef.current) {
                 setTimeout(() => {
                     try {
-                        recognitionRef.current.start();
+                        rec.start();
                     } catch (e) {}
                 }, 300);
             }
@@ -192,7 +167,7 @@ export function useSpeech(
         try {
             rec.start();
         } catch (e) {}
-    }, [processFinalText]);
+    }, [processFinalText, masterLang]);
 
     useEffect(() => {
         initRecognition();

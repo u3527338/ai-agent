@@ -9,12 +9,25 @@ export function useChat() {
     const isBusyRef = useRef(false);
     const speechQueue = useRef<string[]>([]);
 
+    // ⚛️ 關鍵：在 window 上掛載引用，防止 Electron GC 回收導致 onend 消失
+    const activeUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
     const speak = useCallback((text: string) => {
         if (!text || typeof window === "undefined") return;
+
+        // 如果當前正在講話，加入隊列
+        if (window.speechSynthesis.speaking) {
+            speechQueue.current.push(text);
+            return;
+        }
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = lumosLang;
         utterance.rate = 1.1;
+
+        // 保護引用
+        activeUtteranceRef.current = utterance;
+        (window as any)._lastUtterance = utterance;
 
         utterance.onstart = () => {
             setIsSpeaking(true);
@@ -22,26 +35,34 @@ export function useChat() {
         };
 
         utterance.onend = () => {
+            activeUtteranceRef.current = null;
             if (speechQueue.current.length > 0) {
                 const nextPart = speechQueue.current.shift();
-                if (nextPart) {
-                    // ⚛️ 關鍵修正：递归調用 speak 以確保每一段都有 onend 監聽
-                    speak(nextPart);
-                }
+                if (nextPart) setTimeout(() => speak(nextPart), 50);
             } else {
                 setIsSpeaking(false);
                 isBusyRef.current = false;
             }
         };
 
-        // ⚛️ 增加 Error 處理防止死鎖
         utterance.onerror = () => {
             setIsSpeaking(false);
             isBusyRef.current = false;
             speechQueue.current = [];
+            activeUtteranceRef.current = null;
         };
 
         window.speechSynthesis.speak(utterance);
+    }, []);
+
+    const stopSpeaking = useCallback(() => {
+        if (typeof window !== "undefined") {
+            window.speechSynthesis.cancel();
+            speechQueue.current = [];
+            setIsSpeaking(false);
+            isBusyRef.current = false;
+            activeUtteranceRef.current = null;
+        }
     }, []);
 
     const askLumos = async (text: string) => {
@@ -50,6 +71,7 @@ export function useChat() {
         isBusyRef.current = true;
         setIsThinking(true);
         setResponse("");
+        speechQueue.current = [];
 
         try {
             const res = await fetch("/api/chat", {
@@ -74,37 +96,30 @@ export function useChat() {
                 sentenceBuffer += chunk;
                 setResponse(fullReply);
 
-                if (
-                    /[。！？.!?;]/.test(sentenceBuffer) ||
-                    sentenceBuffer.length > 20
-                ) {
+                // 遇到標點就開口
+                if (/[。！？.!?;]/.test(sentenceBuffer)) {
                     const toSpeak = sentenceBuffer.trim();
-                    if (toSpeak.length > 1) {
-                        if (!window.speechSynthesis.speaking) {
-                            speak(toSpeak);
-                        } else {
-                            speechQueue.current.push(toSpeak);
-                        }
-                    }
+                    if (toSpeak.length > 1) speak(toSpeak);
                     sentenceBuffer = "";
                 }
             }
 
-            if (sentenceBuffer.trim()) {
-                if (!window.speechSynthesis.speaking) {
-                    speak(sentenceBuffer.trim());
-                } else {
-                    speechQueue.current.push(sentenceBuffer.trim());
-                }
-            }
+            if (sentenceBuffer.trim()) speak(sentenceBuffer.trim());
         } catch (error) {
             setResponse("Neural link abnormally.");
-            isBusyRef.current = false;
+            if (!window.speechSynthesis.speaking) isBusyRef.current = false;
         } finally {
             setIsThinking(false);
-            // 注意：isBusyRef 會在最後一句 speak 的 onend 中釋放
         }
     };
 
-    return { response, setResponse, isThinking, isSpeaking, askLumos, speak };
+    return {
+        response,
+        setResponse,
+        isThinking,
+        isSpeaking,
+        askLumos,
+        speak,
+        stopSpeaking,
+    };
 }

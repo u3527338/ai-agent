@@ -24,14 +24,17 @@ export default function Home() {
         const check =
             typeof window !== "undefined" &&
             (!!(window as any).ipcRenderer ||
-                navigator.userAgent.includes("Lumos-Electron"));
+                /Electron/i.test(navigator.userAgent));
         setIsElectron(check);
+        console.log({check})
+        if (check) {
+            setTimeout(() => setHasInteracted(true), 1000);
+        }
     }, []);
 
     const { isThinking, isSpeaking, askLumos, response, setResponse, speak } =
         useChat();
 
-    // ⚛️ 指令入口 (保持不變)
     const handleWake = useCallback(
         (isAlreadyAwake: boolean, command?: string) => {
             if (command && command.length > 1) {
@@ -59,11 +62,10 @@ export default function Home() {
         handleShutDown
     );
 
-    // ⚛️ 狀態判定
-    const isExpanded = useMemo(() => {
-        if (!isElectron) return true;
-        return isHovered;
-    }, [isElectron, isHovered]);
+    const isExpanded = useMemo(
+        () => (!isElectron ? true : isHovered),
+        [isElectron, isHovered]
+    );
 
     const showOverlay = useMemo(() => {
         const hasValidResponse = !!(
@@ -73,45 +75,44 @@ export default function Home() {
     }, [isSpeaking, response, isActive, isPreWaking]);
 
     return (
-        <main
-            className="min-h-screen w-full relative overflow-hidden select-none pointer-events-none bg-transparent"
-            style={{ color: "inherit" }}
-        >
-            {/* 1. 建立一個專門負責「視覺樣式」的容器層 */}
+        <main className="min-h-screen w-full relative overflow-hidden select-none bg-black">
+            {/* ⚛️ 修正 3：外層容器確保有顏色和佈局 */}
             <div
-                className={`absolute inset-0 flex flex-col ${THEME.primary} font-mono`}
+                className={`absolute inset-0 flex flex-col ${
+                    THEME?.primary || "text-cyan-400"
+                } font-mono`}
             >
-                {/* 1. 處理 Electron 專屬的物理層 (感應與狀態球) */}
-                <ElectronBall
-                    isElectron={isElectron}
-                    isExpanded={isExpanded}
-                    onHoverChange={setIsHovered}
-                    state={{
-                        isOnline: sysData.isOnline,
-                        isSpeaking,
-                        isThinking,
-                        isPreWaking,
-                        isActive,
-                    }}
-                />
+                {/* 你的原創球體組件 */}
+                <div className="pointer-events-auto z-10">
+                    <ElectronBall
+                        isElectron={isElectron}
+                        isExpanded={isExpanded}
+                        onHoverChange={setIsHovered}
+                        state={{
+                            isOnline: sysData.isOnline,
+                            isSpeaking,
+                            isThinking,
+                            isPreWaking,
+                            isActive,
+                        }}
+                    />
+                </div>
 
-                {/* 2. 處理初始化遮罩 */}
+                {/* 初始化遮罩 (只有非 Electron 或未交互時顯示) */}
                 {!hasInteracted && (
                     <div
-                        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-3xl pointer-events-auto cursor-pointer"
+                        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl pointer-events-auto cursor-pointer"
                         onClick={() => setHasInteracted(true)}
                     >
-                        <div className="text-center p-16 border border-cyan-500/20 rounded-full animate-pulse">
-                            <p
-                                className={`${THEME.primary} tracking-[1.5em] font-black text-[10px] uppercase`}
-                            >
+                        <div className="text-center p-16 border border-cyan-500/20 rounded-full">
+                            <p className="animate-pulse tracking-[1.5em] text-[10px] uppercase text-cyan-500">
                                 INITIALIZE NEURAL LINK
                             </p>
                         </div>
                     </div>
                 )}
 
-                {/* 3. 處理 HUD 內容與動畫 */}
+                {/* 你的原創 HUD 組件 */}
                 <NeuralInterface
                     isExpanded={isExpanded}
                     isElectron={isElectron}
@@ -125,6 +126,12 @@ export default function Home() {
                     transcript={transcript}
                 />
             </div>
+
+            {/* 透明視窗專用的拖動條 */}
+            <div
+                className="fixed top-0 left-0 w-full h-8 z-[9999]"
+                style={{ WebkitAppRegion: "drag" } as any}
+            />
         </main>
     );
 }
