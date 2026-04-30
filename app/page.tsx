@@ -26,10 +26,15 @@ export default function Home() {
             (!!(window as any).ipcRenderer ||
                 /Electron/i.test(navigator.userAgent));
         setIsElectron(check);
-        if (check) {
-            setTimeout(() => setHasInteracted(true), 1000);
-        }
+        if (check) setHasInteracted(true);
     }, []);
+
+    // 🚀 當滑鼠移入/移出球體時，通知 Electron 恢復或取消穿透
+    useEffect(() => {
+        if (isElectron && (window as any).ipcRenderer) {
+            (window as any).ipcRenderer.send("set-ignore-mouse", !isHovered);
+        }
+    }, [isHovered, isElectron]);
 
     const {
         isThinking,
@@ -41,9 +46,6 @@ export default function Home() {
         stopSpeaking,
     } = useChat();
 
-    /**
-     * 核心邏輯：處理從 useSpeech 傳來的所有狀態變更
-     */
     const handleWake = useCallback(
         (
             active: boolean,
@@ -51,45 +53,32 @@ export default function Home() {
             isFirstWake?: boolean,
             isShuttingDown?: boolean
         ) => {
-            // 1. 關機邏輯 (Active -> Inactive)
             if (isShuttingDown) {
                 stopSpeaking();
                 setResponse(SHUTDOWN_RESPONSE);
                 speak(SHUTDOWN_RESPONSE);
                 return;
             }
-
-            // 2. 初次喚醒邏輯 (Inactive -> Active / Gray -> Blue)
             if (isFirstWake) {
                 setResponse(WAKE_RESPONSE);
                 speak(WAKE_RESPONSE);
                 return;
             }
-
-            // 3. 橘色待命超時邏輯 (Orange -> Blue)
             if (command === "__PREWAKE_TIMEOUT__") {
                 setResponse(STANDBY_RESPONSE);
                 speak(STANDBY_RESPONSE);
                 return;
             }
-
-            // 4. 正式接收指令 (Orange -> Active)
-            if (command && command.length > 1) {
-                askLumos(command);
-            }
+            if (command && command.length > 1) askLumos(command);
         },
         [speak, setResponse, askLumos, stopSpeaking]
     );
-
-    const handleShutDown = useCallback(() => {
-        setResponse("");
-    }, [setResponse]);
 
     const { transcript, isActive, isPreWaking } = useSpeech(
         getWakeWord,
         getShutdownWord,
         handleWake,
-        handleShutDown
+        () => setResponse("")
     );
 
     const isExpanded = useMemo(
@@ -105,43 +94,43 @@ export default function Home() {
     }, [isSpeaking, response, isActive, isPreWaking]);
 
     return (
-        <main className="min-h-screen w-full relative overflow-hidden select-none bg-black">
+        /* ✨ 關鍵 1: 動態背景。Electron 下全透明，Browser 下全黑 */
+        <main
+            className={`min-h-screen w-full relative overflow-hidden select-none ${
+                isElectron ? "bg-transparent" : "bg-black"
+            }`}
+        >
+            {/* ⚛️ Lumos 核心球體 (右上角固定) */}
             <div
-                className={`absolute inset-0 flex flex-col ${
-                    THEME?.primary || "text-cyan-400"
-                } font-mono`}
+                className="absolute top-5 right-5 z-50 pointer-events-auto"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                style={
+                    { WebkitAppRegion: isHovered ? "drag" : "no-drag" } as any
+                }
             >
-                {/* ⚛️ Lumos 核心球體 */}
-                <div className="pointer-events-auto z-10">
-                    <ElectronBall
-                        isElectron={isElectron}
-                        isExpanded={isExpanded}
-                        onHoverChange={setIsHovered}
-                        state={{
-                            isOnline: sysData.isOnline,
-                            isSpeaking,
-                            isThinking,
-                            isPreWaking, // 橘色燈號
-                            isActive, // 藍色/灰色狀態
-                        }}
-                    />
-                </div>
+                <ElectronBall
+                    isElectron={isElectron}
+                    isExpanded={isExpanded}
+                    onHoverChange={setIsHovered}
+                    state={{
+                        isOnline: sysData.isOnline,
+                        isSpeaking,
+                        isThinking,
+                        isPreWaking,
+                        isActive,
+                    }}
+                />
+            </div>
 
-                {/* 初始化遮罩 */}
-                {!hasInteracted && (
-                    <div
-                        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl pointer-events-auto cursor-pointer"
-                        onClick={() => setHasInteracted(true)}
-                    >
-                        <div className="text-center p-16 border border-cyan-500/20 rounded-full">
-                            <p className="animate-pulse tracking-[1.5em] text-[10px] uppercase text-cyan-500">
-                                INITIALIZE NEURAL LINK
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* 你的原創 HUD 組件 */}
+            {/* ✨ 關鍵 2: 科技感 HUD - 僅在非 Electron 或 Hover 時顯示 */}
+            <div
+                className={`transition-opacity duration-500 ${
+                    isElectron && !isHovered && !isSpeaking
+                        ? "opacity-0"
+                        : "opacity-100"
+                }`}
+            >
                 <NeuralInterface
                     isExpanded={isExpanded}
                     isElectron={isElectron}
@@ -156,11 +145,19 @@ export default function Home() {
                 />
             </div>
 
-            {/* Electron 拖拽條 */}
-            <div
-                className="fixed top-0 left-0 w-full h-8 z-[9999]"
-                style={{ WebkitAppRegion: "drag" } as any}
-            />
+            {/* 初始化遮罩 (僅在 Browser 顯示) */}
+            {!hasInteracted && !isElectron && (
+                <div
+                    className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl pointer-events-auto"
+                    onClick={() => setHasInteracted(true)}
+                >
+                    <div className="text-center p-16 border border-cyan-500/20 rounded-full">
+                        <p className="animate-pulse tracking-[1.5em] text-[10px] uppercase text-cyan-500">
+                            INITIALIZE NEURAL LINK
+                        </p>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

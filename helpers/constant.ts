@@ -21,7 +21,7 @@ export const STANDBY_RESPONSE = "System already online. I am here, Sir.";
 export const SHUTDOWN_RESPONSE =
     "System offline. I shall remain in the shadows until summoned, Sir.";
 
-export const masterLang = "en-GB";
+export const masterLang = "zh-HK";
 export const lumosLang = "en-GB";
 
 export const THEME = {

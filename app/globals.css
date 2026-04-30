@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    --foreground: #ededed;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 🚀 物理屏蔽：移除所有可能導致邊框的因素 */
+* {
+    box-sizing: border-box;
+    /* 移除焦點時的藍色/白色外框，這是邊框的主要元兇 */
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    /* 核心：絕對透明 */
+    background: transparent !important;
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+
+    margin: 0;
+    padding: 0;
+
+    /* 徹底禁止捲動與邊框溢出 */
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+
+    /* 移除系統預設可能產生的任何邊線 */
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 科技感文字字體 */
+.tech-font {
+    font-family: var(--font-mono), monospace;
+}
+
+/* ✨ 改進後的毛玻璃效果：更具深邃感，適合透明背景 */
+.glass-panel {
+    background: rgba(0, 0, 0, 0.2); /* 加深底色，讓文字在透明桌面上更清晰 */
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* 拖拽控制 */
+.drag-area {
+    -webkit-app-region: drag;
+}
+
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+/* 移除 Chrome/Electron 預設的按鈕點擊邊框 */
+button:focus,
+div:focus {
+    outline: none !important;
 }

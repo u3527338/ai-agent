@@ -35,7 +35,7 @@ def listen_loop():
                 
                 print("📝 正在轉譯...")
                 # 使用 Google 免費接口
-                text = recognizer.recognize_google(audio, language="en-US")
+                text = recognizer.recognize_google(audio, language="zh-HK")
                 
                 if text:
                     print(f"✅ 識別成功: {text}")
