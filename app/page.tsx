@@ -26,34 +26,64 @@ export default function Home() {
             (!!(window as any).ipcRenderer ||
                 /Electron/i.test(navigator.userAgent));
         setIsElectron(check);
-        console.log({check})
         if (check) {
             setTimeout(() => setHasInteracted(true), 1000);
         }
     }, []);
 
-    const { isThinking, isSpeaking, askLumos, response, setResponse, speak } =
-        useChat();
+    const {
+        isThinking,
+        isSpeaking,
+        askLumos,
+        response,
+        setResponse,
+        speak,
+        stopSpeaking,
+    } = useChat();
 
+    /**
+     * 核心邏輯：處理從 useSpeech 傳來的所有狀態變更
+     */
     const handleWake = useCallback(
-        (isAlreadyAwake: boolean, command?: string) => {
+        (
+            active: boolean,
+            command?: string,
+            isFirstWake?: boolean,
+            isShuttingDown?: boolean
+        ) => {
+            // 1. 關機邏輯 (Active -> Inactive)
+            if (isShuttingDown) {
+                stopSpeaking();
+                setResponse(SHUTDOWN_RESPONSE);
+                speak(SHUTDOWN_RESPONSE);
+                return;
+            }
+
+            // 2. 初次喚醒邏輯 (Inactive -> Active / Gray -> Blue)
+            if (isFirstWake) {
+                setResponse(WAKE_RESPONSE);
+                speak(WAKE_RESPONSE);
+                return;
+            }
+
+            // 3. 橘色待命超時邏輯 (Orange -> Blue)
+            if (command === "__PREWAKE_TIMEOUT__") {
+                setResponse(STANDBY_RESPONSE);
+                speak(STANDBY_RESPONSE);
+                return;
+            }
+
+            // 4. 正式接收指令 (Orange -> Active)
             if (command && command.length > 1) {
                 askLumos(command);
-            } else {
-                const msg = isAlreadyAwake ? STANDBY_RESPONSE : WAKE_RESPONSE;
-                setResponse(msg);
-                speak(msg);
             }
         },
-        [speak, setResponse, askLumos]
+        [speak, setResponse, askLumos, stopSpeaking]
     );
 
     const handleShutDown = useCallback(() => {
-        if (typeof window !== "undefined") window.speechSynthesis.cancel();
-        const msg = SHUTDOWN_RESPONSE;
-        setResponse(msg);
-        speak(msg);
-    }, [speak, setResponse]);
+        setResponse("");
+    }, [setResponse]);
 
     const { transcript, isActive, isPreWaking } = useSpeech(
         getWakeWord,
@@ -76,13 +106,12 @@ export default function Home() {
 
     return (
         <main className="min-h-screen w-full relative overflow-hidden select-none bg-black">
-            {/* ⚛️ 修正 3：外層容器確保有顏色和佈局 */}
             <div
                 className={`absolute inset-0 flex flex-col ${
                     THEME?.primary || "text-cyan-400"
                 } font-mono`}
             >
-                {/* 你的原創球體組件 */}
+                {/* ⚛️ Lumos 核心球體 */}
                 <div className="pointer-events-auto z-10">
                     <ElectronBall
                         isElectron={isElectron}
@@ -92,13 +121,13 @@ export default function Home() {
                             isOnline: sysData.isOnline,
                             isSpeaking,
                             isThinking,
-                            isPreWaking,
-                            isActive,
+                            isPreWaking, // 橘色燈號
+                            isActive, // 藍色/灰色狀態
                         }}
                     />
                 </div>
 
-                {/* 初始化遮罩 (只有非 Electron 或未交互時顯示) */}
+                {/* 初始化遮罩 */}
                 {!hasInteracted && (
                     <div
                         className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl pointer-events-auto cursor-pointer"
@@ -127,7 +156,7 @@ export default function Home() {
                 />
             </div>
 
-            {/* 透明視窗專用的拖動條 */}
+            {/* Electron 拖拽條 */}
             <div
                 className="fixed top-0 left-0 w-full h-8 z-[9999]"
                 style={{ WebkitAppRegion: "drag" } as any}

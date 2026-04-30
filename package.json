@@ -8,13 +8,15 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint",
-        "system-launch": "docker-compose up --build",
-        "memory": "./venv_memory/bin/chroma run --path ./lumos_db",
         "ollama": "ollama serve",
-        "lumos": "concurrently -n \"BRAIN,MEMORY,UI\" -c \"magenta.bold,cyan.bold,blue.bold\" \"npm run ollama\" \"npm run memory\" \"npm run dev\"",
-        "memory:check": "./venv_memory/bin/pip show chromadb",
-        "electron": "electron .",
-        "all": "npx concurrently --kill-others \"npm run dev\" \"npm run electron\""
+        "memory": "./venv_memory/bin/chroma run --path ./lumos_db",
+        "python:listen": "python3 scripts/listener.py",
+        "electron:start": "electron .",
+        "lumos:core": "concurrently -n \"BRAIN,MEM,UI,EAR\" -c \"magenta.bold,cyan.bold,blue.bold,green.bold\" \"npm run ollama\" \"npm run memory\" \"npm run dev\" \"npm run python:listen\"",
+        "dev:web": "npm run lumos:core",
+        "dev:electron": "concurrently -n \"CORE,SHELL\" -c \"white.bold,yellow.bold\" \"npm run lumos:core\" \"wait-on http://localhost:3000 && npm run electron:start\"",
+        "system-launch": "docker-compose up --build",
+        "memory:check": "./venv_memory/bin/pip show chromadb"
     },
     "dependencies": {
         "axios": "^1.15.2",
